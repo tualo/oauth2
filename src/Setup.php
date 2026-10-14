@@ -38,7 +38,7 @@ class Setup
             self::$_db = $db;
         }
         if (is_null(self::$_db)) {
-            self::$_db = TualoApplication::get('session')->getDB();
+            self::$_db = TualoApplication::get('session')->db;
         }
 
         return self::$_db;

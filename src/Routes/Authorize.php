@@ -30,17 +30,20 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
     public static function register(): void
     {
         BasicRoute::add('/oauth2/authorize', static function (): bool {
+            $stage = 'session_database';
             try {
                 $session = App::get('session');
                 if (!$session instanceof Session) {
                     throw new \RuntimeException('The Tualo session database is unavailable.');
                 }
 
-                $database = $session->getDB();
+                $database = $session->db;
                 if (!$database instanceof Database) {
                     throw new \RuntimeException('The Tualo session database is unavailable.');
                 }
+                $stage = 'server_configuration';
                 $factory = AuthorizationServerFactory::fromTualoApplication($database);
+                $stage = 'server_creation';
                 $server = $factory->create();
                 $identityRepository = new IdentityRepository($database);
                 $request = ServerRequest::fromGlobals();
@@ -48,12 +51,14 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
                 $requestId = $query['request_id'] ?? null;
 
                 if ($requestId !== null) {
+                    $stage = 'pending_request';
                     if (!is_string($requestId) || !preg_match('/\A[a-f0-9]{64}\z/', $requestId)) {
                         throw OAuthServerException::invalidRequest('request_id');
                     }
                     $pending = self::getPendingRequest($requestId);
                     $authorizationRequest = $pending['authorization_request'];
                 } else {
+                    $stage = 'authorization_validation';
                     $authorizationRequest = $server->validateAuthorizationRequest($request);
                     $requestId = bin2hex(random_bytes(32));
                     $pending = [
@@ -64,10 +69,21 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
                 }
 
                 if (!$session->isLoggedIn()) {
+                    $stage = 'login_continuation';
                     self::storePendingRequest($requestId, $pending);
                     $issuer = Setup::getInstance()->env('issuer_url');
                     $continuation = rtrim($issuer, '/') . '/oauth2/authorize?request_id=' . rawurlencode($requestId);
-                    $_SESSION['redirect_url'] = $continuation;
+                    $pendingNotifications = $_SESSION['oauth2_pending_requests'] ?? [];
+                    if (!is_array($pendingNotifications)) {
+                        throw new \UnexpectedValueException('The pending OAuth notification queue is malformed.');
+                    }
+                    $pendingNotifications[] = [
+                        'title' => 'Continue sign-in',
+                        'message' => 'Continue the pending authorization request.',
+                        'type' => 'redirect',
+                        'redirectUrl' => $continuation,
+                    ];
+                    $_SESSION['oauth2_pending_requests'] = $pendingNotifications;
                     session_commit();
 
                     self::emit(new Response(
@@ -78,6 +94,7 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
                     return true;
                 }
 
+                $stage = 'user_identity';
                 $username = $session->getUsername();
                 if (!is_string($username) || $username === '') {
                     throw new \RuntimeException('The authenticated Tualo user is unavailable.');
@@ -91,6 +108,7 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
                 $pending['expires_at'] = time() + self::REQUEST_TTL_SECONDS;
                 self::storePendingRequest($requestId, $pending);
 
+                $stage = 'consent_redirect';
                 $issuer = Setup::getInstance()->env('issuer_url');
                 $consentUrl = rtrim($issuer, '/') . '/oauth2/consent?request_id=' . rawurlencode($requestId);
                 session_commit();
@@ -105,6 +123,13 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
             } catch (\Throwable $exception) {
                 App::logger('oauth2')->error('Authorization request processing failed.', [
                     'exception' => $exception::class,
+                    'code' => $exception->getCode(),
+                    'stage' => $stage,
+                    'file' => basename($exception->getFile()),
+                    'line' => $exception->getLine(),
+                    'sqlstate' => $exception instanceof \mysqli_sql_exception
+                        ? $exception->getSqlState()
+                        : null,
                 ]);
                 self::emit(new Response(
                     500,
