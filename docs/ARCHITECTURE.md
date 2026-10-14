@@ -32,9 +32,11 @@ werden in diesem Paket implementiert.
   berechtigte Administratoren verwaltet. Es gibt keine offene Client-Registrierung.
 - Token, Authorization Codes und Client-Geheimnisse werden nicht in Logs
   geschrieben.
-- Authorization Codes sind 5 Minuten, Access Tokens 15 Minuten und Refresh
-  Tokens 30 Tage gültig. Refresh Tokens werden nur mit `offline_access`
-  ausgegeben und bei jeder Verwendung rotiert.
+- Laufzeiten werden über `Setup::getInstance()->env()` bezogen:
+  `auth_token_ttl` steuert Authorization Codes (Default `PT5M`),
+  `access_token_ttl` Access Tokens (Default `PT15M`) und
+  `refresh_token_ttl` Refresh Tokens (Default `P30D`). Refresh Tokens werden
+  nur mit `offline_access` ausgegeben und bei jeder Verwendung rotiert.
 - Client Secrets werden ausschließlich als Passwort-Hash gespeichert.
 
 ## Paketgrenzen
@@ -59,6 +61,6 @@ Schlüsselpfad, Passphrase und Verschlüsselungsschlüssel werden explizit an di
 Server-Factory übergeben. Der private Schlüssel muss lesbar und außerhalb des
 Webroots liegen; es gibt dafür keine unsicheren Laufzeit-Defaults.
 
-Für diese Installation ist `https://auth.tualo.io` der konfigurierte Issuer.
+Der Issuer wird über `Setup::getInstance()->env('issuer_url')` bezogen.
 ID-Tokens verwenden ausschließlich diesen konfigurierten Wert und niemals
 einen aus der HTTP-Anfrage abgeleiteten Hostnamen.

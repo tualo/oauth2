@@ -50,12 +50,9 @@ class Setup
             if (($issuer_url = TualoApplication::configuration('oauth2', 'issuer_url', false)) !== false) {
                 self::$ENV['issuer_url'] = $issuer_url;
             }
-            if (($refresh_token_ttl = TualoApplication::configuration('oauth2', 'refresh_token_ttl', 'P30D'))) {
-                self::$ENV['refresh_token_ttl'] = $refresh_token_ttl;
-            }
             self::$ENV['refresh_token_ttl'] = TualoApplication::configuration('oauth2', 'refresh_token_ttl', 'P30D');
-            self::$ENV['access_token_ttl'] = TualoApplication::configuration('oauth2', 'access_token_ttl', 'P15M');
-            self::$ENV['auth_token_ttl'] = TualoApplication::configuration('oauth2', 'auth_token_ttl', 'P15M');
+            self::$ENV['access_token_ttl'] = TualoApplication::configuration('oauth2', 'access_token_ttl', 'PT15M');
+            self::$ENV['auth_token_ttl'] = TualoApplication::configuration('oauth2', 'auth_token_ttl', 'PT5M');
 
             $db = self::db();
             try {

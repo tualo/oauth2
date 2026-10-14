@@ -40,3 +40,8 @@ The schema is installed into Tualo's session database with `install-oauth2`.
 HTTP routes, session-backed authorization and consent, discovery/JWKS/UserInfo,
 and the client administration interface are still required before the package
 can be used as a running authorization server.
+
+The authorization-server factory reads `issuer_url`, `auth_token_ttl`,
+`access_token_ttl`, and `refresh_token_ttl` through `Setup::env()`. Durations
+use PHP's ISO-8601 `DateInterval` format; defaults are `PT5M`, `PT15M`, and
+`P30D`, respectively.

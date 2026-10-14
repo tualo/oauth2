@@ -18,10 +18,10 @@ use Tualo\Office\OAuth2\Repositories\ClientRepository;
 use Tualo\Office\OAuth2\Repositories\IdentityRepository;
 use Tualo\Office\OAuth2\Repositories\RefreshTokenRepository;
 use Tualo\Office\OAuth2\Repositories\ScopeRepository;
+use Tualo\Office\OAuth2\Setup;
+
 final class AuthorizationServerFactory
 {
-    public const ISSUER = 'https://auth.tualo.io';
-
     public function __construct(
         private readonly Database $database,
         private readonly IdentityRepository $identityRepository,
@@ -34,6 +34,12 @@ final class AuthorizationServerFactory
 
     public function create(): AuthorizationServer
     {
+        $setup = Setup::getInstance();
+        $issuer = $setup->env('issuer_url');
+        $authCodeTTL = $this->getConfiguredInterval($setup, 'auth_token_ttl');
+        $accessTokenTTL = $this->getConfiguredInterval($setup, 'access_token_ttl');
+        $refreshTokenTTL = $this->getConfiguredInterval($setup, 'refresh_token_ttl');
+
         $privateKeyPath = realpath($this->privateKeyPath);
         if ($privateKeyPath === false || !is_file($privateKeyPath) || !is_readable($privateKeyPath)) {
             throw new \RuntimeException('The configured OAuth private key is not a readable file.');
@@ -64,7 +70,7 @@ final class AuthorizationServerFactory
         $responseType = new FixedIssuerIdTokenResponse(
             $this->identityRepository,
             new ClaimExtractor(),
-            self::ISSUER
+            $issuer
         );
 
         $server = new AuthorizationServer(
@@ -80,19 +86,41 @@ final class AuthorizationServerFactory
         $authCodeGrant = new OfflineAccessAuthCodeGrant(
             $authCodeRepository,
             $refreshTokenRepository,
-            new \DateInterval('PT5M')
+            $authCodeTTL
         );
-        $authCodeGrant->setRefreshTokenTTL(new \DateInterval('P30D'));
+        $authCodeGrant->setRefreshTokenTTL($refreshTokenTTL);
         $authCodeGrant->revokeRefreshTokens(true);
-        $server->enableGrantType($authCodeGrant, new \DateInterval('PT15M'));
+        $server->enableGrantType($authCodeGrant, $accessTokenTTL);
 
         $refreshTokenGrant = new OfflineAccessRefreshTokenGrant($refreshTokenRepository);
-        $refreshTokenGrant->setRefreshTokenTTL(new \DateInterval('P30D'));
+        $refreshTokenGrant->setRefreshTokenTTL($refreshTokenTTL);
         $refreshTokenGrant->revokeRefreshTokens(true);
-        $server->enableGrantType($refreshTokenGrant, new \DateInterval('PT15M'));
+        $server->enableGrantType($refreshTokenGrant, $accessTokenTTL);
 
-        $server->enableGrantType(new ClientCredentialsGrant(), new \DateInterval('PT15M'));
+        $server->enableGrantType(new ClientCredentialsGrant(), $accessTokenTTL);
 
         return $server;
+    }
+
+    private function getConfiguredInterval(Setup $setup, string $key): \DateInterval
+    {
+        $value = $setup->env($key);
+        try {
+            $interval = new \DateInterval($value);
+        } catch (\Exception $exception) {
+            throw new \InvalidArgumentException(
+                sprintf('OAuth configuration "%s" must be a valid ISO-8601 duration.', $key),
+                previous: $exception
+            );
+        }
+
+        $epoch = new \DateTimeImmutable('@0');
+        if ($epoch->add($interval) <= $epoch) {
+            throw new \InvalidArgumentException(
+                sprintf('OAuth configuration "%s" must be greater than zero.', $key)
+            );
+        }
+
+        return $interval;
     }
 }
