@@ -10,6 +10,7 @@ use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Grant\ClientCredentialsGrant;
 use OpenIDConnectServer\ClaimExtractor;
 use Tualo\Office\Basic\MYSQL\Database;
+use Tualo\Office\Basic\TualoApplication as App;
 use Tualo\Office\OAuth2\Grants\OfflineAccessAuthCodeGrant;
 use Tualo\Office\OAuth2\Grants\OfflineAccessRefreshTokenGrant;
 use Tualo\Office\OAuth2\Repositories\AccessTokenRepository;
@@ -30,6 +31,36 @@ final class AuthorizationServerFactory
         private readonly ?string $privateKeyPassphrase,
         private readonly string $encryptionKey
     ) {
+    }
+
+    public static function fromTualoApplication(Database $database): self
+    {
+        $privateKeyPath = App::configuration('oauth2', 'private_key_path', false);
+        $encryptionKey = App::configuration('oauth2', 'encryption_key', false);
+        $webRoot = $_SERVER['DOCUMENT_ROOT'] ?? false;
+        $privateKeyPassphrase = App::configuration('oauth2', 'private_key_passphrase', null);
+
+        if (!is_string($privateKeyPath) || trim($privateKeyPath) === '') {
+            throw new \RuntimeException('OAuth configuration "private_key_path" is required.');
+        }
+        if (!is_string($encryptionKey) || trim($encryptionKey) === '') {
+            throw new \RuntimeException('OAuth configuration "encryption_key" is required.');
+        }
+        if (!is_string($webRoot) || trim($webRoot) === '') {
+            throw new \RuntimeException('The web server document root is unavailable.');
+        }
+        if ($privateKeyPassphrase !== null && !is_string($privateKeyPassphrase)) {
+            throw new \RuntimeException('OAuth configuration "private_key_passphrase" must be a string.');
+        }
+
+        return new self(
+            $database,
+            new IdentityRepository($database),
+            $webRoot,
+            $privateKeyPath,
+            $privateKeyPassphrase,
+            $encryptionKey
+        );
     }
 
     public function create(): AuthorizationServer

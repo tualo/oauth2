@@ -18,7 +18,7 @@ class Setup
 {
     private static Setup $instance;
 
-    private static Database $_db;
+    private static ?Database $_db = null;
     private static array $ENV = [];
 
 
@@ -55,17 +55,19 @@ class Setup
             self::$ENV['auth_token_ttl'] = TualoApplication::configuration('oauth2', 'auth_token_ttl', 'PT5M');
 
             $db = self::db();
-            try {
-                if (!is_null($db)) {
-                    $data = $db->direct('select id,val from oauth2_environments', []);
-                    foreach ($data as $d) {
-                        self::$ENV[$d['id']] = $d['val'];
-                    }
-                } else {
-                    echo 'Error ';
+            if (!$db instanceof Database) {
+                throw new \RuntimeException('The OAuth environment database is unavailable.');
+            }
+
+            $data = $db->direct('SELECT id, val FROM oauth2_environments', []);
+            if (!is_array($data)) {
+                throw new \RuntimeException('Unable to load OAuth environment settings.');
+            }
+            foreach ($data as $row) {
+                if (!isset($row['id'], $row['val'])) {
+                    throw new \UnexpectedValueException('An OAuth environment row is malformed.');
                 }
-            } catch (\Exception $e) {
-                echo 'Error fetching oauth2 environments: ' . $e->getMessage() . PHP_EOL;
+                self::$ENV[(string) $row['id']] = (string) $row['val'];
             }
         }
         if (empty(self::$ENV)) {

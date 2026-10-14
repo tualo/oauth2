@@ -1,3 +1,9 @@
+CREATE TABLE IF NOT EXISTS `oauth2_environments` (
+    `id` varchar(128) NOT NULL,
+    `val` text NOT NULL,
+    PRIMARY KEY (`id`)
+);
+
 CREATE TABLE IF NOT EXISTS `oauth2_subjects` (
     `subject_id` char(36) NOT NULL,
     `login` varchar(255) NOT NULL,
