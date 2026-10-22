@@ -142,7 +142,7 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
             }
 
             return true;
-        }, ['get'], false, [], self::scope());
+        }, ['get'], false/*, [], self::scope()*/);
     }
 
     private static function getPendingRequest(string $requestId): array
@@ -210,7 +210,14 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
             $authority .= ':' . $parts['port'];
         }
 
-        return 'https://' . $authority . '/';
+        $url = Setup::getInstance()->envWithDefault('login_url', 'https://' . $authority . '/');
+
+        App::logger('oauth2')->error('Authorization request processing >>>> login URL resolved.', [
+            'issuer' => $issuer,
+            'login_url' => $url,
+        ]);
+
+        return   $url;
     }
 
     private static function emit(ResponseInterface $response): void

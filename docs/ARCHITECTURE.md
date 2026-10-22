@@ -95,6 +95,15 @@ gegebenenfalls `state`. Erteilung stellt einen kurzlebigen Authorization Code
 mit PKCE-Bindung aus und leitet ausschließlich zur registrierten Redirect-URI
 weiter.
 
+Die ExtJS-Oberflaeche kann unter `GET /consentinformation?request_id=...`
+die angeforderten Berechtigungen abrufen. `requested_access` enthaelt pro
+angefordertem Scope ein Objekt mit `type="string"`, `id` (Scope-Kennung),
+`name` und `description`. Die Daten stammen aus der gespeicherten Anfrage;
+Session, Benutzerzuordnung und Ablauf werden vor der Ausgabe geprueft.
+Die Standard-Scopes erhalten deutsche Beschreibungen, anwendungsspezifische
+Scopes werden mit ihrer Kennung angezeigt. Der Abruf erteilt keine Einwilligung
+und verbraucht die Anfrage nicht.
+
 ### Token
 
 `POST /oauth2/token` akzeptiert `application/x-www-form-urlencoded` und

@@ -54,6 +54,19 @@ class Setup
             self::$ENV['access_token_ttl'] = TualoApplication::configuration('oauth2', 'access_token_ttl', 'PT15M');
             self::$ENV['auth_token_ttl'] = TualoApplication::configuration('oauth2', 'auth_token_ttl', 'PT5M');
 
+            if (isset(self::$ENV['issuer_url'])) {
+                $parts = parse_url($issuer_url);
+                if ($parts === false) {
+                    throw new \RuntimeException('The configured OAuth issuer URL is invalid.');
+                }
+                $authority = $parts['host'];
+                if (isset($parts['port'])) {
+                    $authority .= ':' . $parts['port'];
+                }
+                self::$ENV['login_url'] = TualoApplication::configuration('oauth2', 'login_url', 'https://' . $authority . '/');
+            }
+
+
             $db = self::db();
             if (!$db instanceof Database) {
                 throw new \RuntimeException('The OAuth environment database is unavailable.');
@@ -84,5 +97,13 @@ class Setup
             return $env[$key];
         }
         throw new \Exception('Environment ' . $key . ' not found!');
+    }
+    public function envWithDefault(string $key, string $default = ''): string
+    {
+        $env = self::environment();
+        if (isset($env[$key])) {
+            return $env[$key];
+        }
+        return $default;
     }
 }
