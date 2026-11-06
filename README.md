@@ -4,6 +4,9 @@ Authorization server package for Tualo Office. The package is based on the
 Tualo package blueprint and uses League OAuth 2.0 Server plus its OpenID
 Connect extension for protocol handling.
 
+The PSR-7 dependency supports both Guzzle PSR-7 2.7+ and 3.2+ so that this
+package can be installed alongside packages using Guzzle HTTP 8.3.1+.
+
 ## Agreed first release
 
 - Authorization Code grant with PKCE for user authorization
