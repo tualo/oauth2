@@ -85,12 +85,13 @@ callback_listen="$(
 
 callback_pid=""
 result_file=""
+result_file_is_temp=0
 cleanup() {
     if [[ -n "$callback_pid" ]] && kill -0 "$callback_pid" 2>/dev/null; then
         kill "$callback_pid" 2>/dev/null || true
         wait "$callback_pid" 2>/dev/null || true
     fi
-    if [[ -n "$result_file" ]]; then
+    if [[ -n "$result_file" && "$result_file_is_temp" == "1" ]]; then
         rm -f "$result_file"
     fi
 }
@@ -99,7 +100,13 @@ trap cleanup EXIT
 if [[ -n "$callback_listen" ]]; then
     listen_address="${callback_listen%% *}"
     callback_path="${callback_listen#* }"
-    result_file="$(mktemp)"
+
+    if [[ -n "${OAUTH2_CALLBACK_RESULT_FILE:-}" ]]; then
+        result_file="$OAUTH2_CALLBACK_RESULT_FILE"
+    else
+        result_file="$(mktemp)"
+        result_file_is_temp=1
+    fi
     : > "$result_file"
 
     OAUTH2_CALLBACK_PATH="$callback_path" \

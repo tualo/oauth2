@@ -25,6 +25,13 @@ if ($resultFile !== '') {
         json_encode($_GET, JSON_THROW_ON_ERROR) . "\n",
         LOCK_EX
     );
+    if (file_exists($resultFile)) {
+
+        echo "<p>Callback empfangen $resultFile .</p>";
+        chmod($resultFile, 0600);
+    }
+
+    echo "<p>Callback empfangen.</p>";
 }
 
 $escape = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
