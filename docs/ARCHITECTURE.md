@@ -61,6 +61,11 @@ Schnittstelle des ersten Releases.
 | `GET /oauth2/authorize` | Browser, Tualo-Session erforderlich | Authorization Request validieren und Anmeldung/Einwilligung starten |
 | `GET /oauth2/consent` | Browser, Tualo-Session erforderlich | Client, angeforderte Scopes und angemeldeten Benutzer anzeigen |
 | `POST /oauth2/consent` | Browser, Tualo-Session erforderlich | Einwilligung erteilen oder ablehnen und Authorization Response abschließen |
+| `GET /oauth2/manual-code` | Browser, Tualo-Session erforderlich | Redirect-Ziel für Clients ohne erreichbare Callback-URL: zeigt den Authorization Code zum manuellen Übertragen an |
+| `POST /oauth2/device_authorization` | öffentlich; `client_id` erforderlich | Device Code und User Code für den Device Authorization Grant (RFC 8628) ausstellen |
+| `GET /oauth2/device` | Browser, Tualo-Session erforderlich | Eingabeseite für den User Code öffnen (optional `?user_code=...`) |
+| `POST /oauth2/device` | Browser, Tualo-Session erforderlich | Gerätefreigabe erteilen oder ablehnen |
+| `GET /oauth2/deviceinformation` | Browser, Tualo-Session erforderlich | Client und angeforderte Scopes zu einem User Code anzeigen |
 | `POST /oauth2/token` | öffentlich; Client-Authentifizierung grantabhängig | Authorization Code, Client Credentials und Refresh Token gegen Tokens tauschen |
 | `GET /oauth2/jwks` | öffentlich | Öffentliche Signaturschlüssel für JWT-Prüfung |
 | `GET` oder `POST /oauth2/userinfo` | Authorization-Header erforderlich | OIDC-Claims für den authentifizierten Benutzer liefern |
@@ -128,6 +133,36 @@ unterstützt:
 - `grant_type=refresh_token` mit einem zuvor ausgegebenen Refresh Token.
   Ein Refresh Token wird nur ausgegeben, wenn `offline_access` erteilt wurde,
   und bei erfolgreicher Verwendung rotiert.
+- `grant_type=urn:ietf:params:oauth:grant-type:device_code` mit `device_code`;
+  der Client pollt, bis der Benutzer die Anfrage bestätigt oder abgelehnt hat
+  (`authorization_pending`, `slow_down`, `access_denied`, `expired_token`).
+
+### Clients ohne erreichbare Callback-URL
+
+Für Clients, die keinen Redirect empfangen können (Firewall, NAT, kein
+Listener), gibt es zwei Wege:
+
+1. **Device Authorization Grant (RFC 8628, empfohlen).**
+   `POST /oauth2/device_authorization` mit `client_id` (und optional `scope`)
+   liefert `device_code`, `user_code`, `verification_uri`,
+   `verification_uri_complete`, `expires_in` und `interval`. Der Client
+   benötigt nur ausgehendes HTTPS. Der Benutzer öffnet die
+   Verification-URI (`GET /oauth2/device` leitet auf die ExtJS-Seite
+   `#oauth2-device` weiter), meldet sich an, gibt den User Code ein, prüft
+   Client und Scopes (`GET /oauth2/deviceinformation?user_code=...`) und
+   entscheidet per `POST /oauth2/device` (JSON: `user_code`, `decision` mit
+   `approve` oder `deny`). Der Client erhält die Tokens beim nächsten Poll des
+   Token-Endpunkts; der Device Code ist einmalverwendbar, der Client muss
+   derselbe sein, der ihn angefordert hat. Die Gültigkeit steuert
+   `device_code_ttl` (Standard `PT10M`). Refresh Tokens werden auch hier nur
+   mit erteiltem `offline_access` ausgegeben.
+2. **Manuelle Code-Übertragung.** Wird
+   `<issuer>/oauth2/manual-code` als Redirect-URI des Clients registriert,
+   landet der Browser nach der Einwilligung auf einer Seite, die den
+   Authorization Code (und `state`) anzeigt. Der Benutzer überträgt den Code
+   manuell in den Client, der den normalen Token-Tausch mit PKCE durchführt.
+   Dieser Weg ist als Übergangslösung gedacht; der Device Grant ist
+   vorzuziehen.
 
 Erfolg und Fehler folgen dem OAuth-Token-Response-Format; Antworten enthalten
 `Cache-Control: no-store` und `Pragma: no-cache`. Client Secrets, Codes und

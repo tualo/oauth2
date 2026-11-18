@@ -82,3 +82,27 @@ CREATE TABLE IF NOT EXISTS `oauth2_refresh_tokens` (
         FOREIGN KEY (`access_token_id`) REFERENCES `oauth2_access_tokens` (`token_id`)
         ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS `oauth2_device_codes` (
+    `device_code_id` varchar(128) NOT NULL,
+    `user_code` varchar(16) NOT NULL,
+    `client_id` varchar(128) NOT NULL,
+    `subject_id` char(36) DEFAULT NULL,
+    `scopes` text NOT NULL,
+    `verification_uri` text NOT NULL,
+    `user_approved` tinyint(1) NOT NULL DEFAULT 0,
+    `retry_interval` int NOT NULL DEFAULT 5,
+    `last_polled_at` datetime DEFAULT NULL,
+    `expires_at` datetime NOT NULL,
+    `is_revoked` tinyint(1) NOT NULL DEFAULT 0,
+    `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`device_code_id`),
+    UNIQUE KEY `uq_oauth2_device_codes_user_code` (`user_code`),
+    KEY `idx_oauth2_device_codes_expiry` (`expires_at`),
+    CONSTRAINT `fk_oauth2_device_codes_client`
+        FOREIGN KEY (`client_id`) REFERENCES `oauth2_clients` (`client_id`)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_oauth2_device_codes_subject`
+        FOREIGN KEY (`subject_id`) REFERENCES `oauth2_subjects` (`subject_id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);

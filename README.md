@@ -48,9 +48,9 @@ administration interface are still required before the package can be used as
 a running authorization server.
 
 The authorization-server factory reads `issuer_url`, `auth_token_ttl`,
-`access_token_ttl`, and `refresh_token_ttl` through `Setup::env()`. Durations
-use PHP's ISO-8601 `DateInterval` format; defaults are `PT5M`, `PT15M`, and
-`P30D`, respectively.
+`access_token_ttl`, `refresh_token_ttl`, and `device_code_ttl` through
+`Setup::env()`. Durations use PHP's ISO-8601 `DateInterval` format; defaults
+are `PT5M`, `PT15M`, `P30D`, and `PT10M`, respectively.
 
 ### Configure the signing key
 
@@ -133,3 +133,24 @@ verifies the `state`, and prints the code together with a ready-to-use
 registered for the client. For non-loopback redirect URIs the script only
 opens the authorization request and prints the `code_verifier` for a manual
 token exchange.
+
+## Clients without a reachable callback URL
+
+For clients that cannot receive a redirect (firewall, NAT, no listener) the
+server supports the Device Authorization Grant (RFC 8628) and, as a fallback,
+a manual code-display page (`<issuer>/oauth2/manual-code` registered as the
+client's redirect URI). Test the device flow with:
+
+```sh
+OAUTH2_ISSUER_URL="https://auth.example.test" \
+OAUTH2_CLIENT_ID="your-client-id" \
+./tools/device-example.sh
+```
+
+The script requests a device code, opens the verification page in the
+browser, and polls the token endpoint until the request is approved, denied,
+or expired. The client must have the grant type
+`urn:ietf:params:oauth:grant-type:device_code` registered. Set
+`OAUTH2_SCOPE` to override the requested scopes and `OAUTH2_INSECURE=1` for
+self-signed test certificates. See `docs/ARCHITECTURE.md` for the protocol
+details.

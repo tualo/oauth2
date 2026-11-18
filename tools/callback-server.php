@@ -26,12 +26,8 @@ if ($resultFile !== '') {
         LOCK_EX
     );
     if (file_exists($resultFile)) {
-
-        echo "<p>Callback empfangen $resultFile .</p>";
         chmod($resultFile, 0600);
     }
-
-    echo "<p>Callback empfangen.</p>";
 }
 
 $escape = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');

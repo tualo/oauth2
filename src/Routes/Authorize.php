@@ -72,7 +72,7 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
                     $stage = 'login_continuation';
                     self::storePendingRequest($requestId, $pending);
                     $issuer = Setup::getInstance()->env('issuer_url');
-                    $continuation = rtrim($issuer, '/') . '/oauth2/authorize?request_id=' . rawurlencode($requestId);
+                    $continuation = rtrim($issuer, '/') . App::get('requestPath') . '/oauth2/authorize?request_id=' . rawurlencode($requestId);
                     $pendingNotifications = $_SESSION['oauth2_pending_requests'] ?? [];
                     if (!is_array($pendingNotifications)) {
                         throw new \UnexpectedValueException('The pending OAuth notification queue is malformed.');

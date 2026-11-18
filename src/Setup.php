@@ -53,6 +53,7 @@ class Setup
             self::$ENV['refresh_token_ttl'] = TualoApplication::configuration('oauth2', 'refresh_token_ttl', 'P30D');
             self::$ENV['access_token_ttl'] = TualoApplication::configuration('oauth2', 'access_token_ttl', 'PT15M');
             self::$ENV['auth_token_ttl'] = TualoApplication::configuration('oauth2', 'auth_token_ttl', 'PT5M');
+            self::$ENV['device_code_ttl'] = TualoApplication::configuration('oauth2', 'device_code_ttl', 'PT10M');
 
             if (isset(self::$ENV['issuer_url'])) {
                 $parts = parse_url($issuer_url);

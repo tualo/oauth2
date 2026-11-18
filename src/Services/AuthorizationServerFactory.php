@@ -12,10 +12,12 @@ use OpenIDConnectServer\ClaimExtractor;
 use Tualo\Office\Basic\MYSQL\Database;
 use Tualo\Office\Basic\TualoApplication as App;
 use Tualo\Office\OAuth2\Grants\OfflineAccessAuthCodeGrant;
+use Tualo\Office\OAuth2\Grants\OfflineAccessDeviceCodeGrant;
 use Tualo\Office\OAuth2\Grants\OfflineAccessRefreshTokenGrant;
 use Tualo\Office\OAuth2\Repositories\AccessTokenRepository;
 use Tualo\Office\OAuth2\Repositories\AuthCodeRepository;
 use Tualo\Office\OAuth2\Repositories\ClientRepository;
+use Tualo\Office\OAuth2\Repositories\DeviceCodeRepository;
 use Tualo\Office\OAuth2\Repositories\IdentityRepository;
 use Tualo\Office\OAuth2\Repositories\RefreshTokenRepository;
 use Tualo\Office\OAuth2\Repositories\ScopeRepository;
@@ -30,8 +32,7 @@ final class AuthorizationServerFactory
         private readonly string $privateKeyPath,
         private readonly ?string $privateKeyPassphrase,
         private readonly string $encryptionKey
-    ) {
-    }
+    ) {}
 
     public static function fromTualoApplication(Database $database): self
     {
@@ -70,6 +71,7 @@ final class AuthorizationServerFactory
         $authCodeTTL = $this->getConfiguredInterval($setup, 'auth_token_ttl');
         $accessTokenTTL = $this->getConfiguredInterval($setup, 'access_token_ttl');
         $refreshTokenTTL = $this->getConfiguredInterval($setup, 'refresh_token_ttl');
+        $deviceCodeTTL = $this->getConfiguredInterval($setup, 'device_code_ttl');
 
         $privateKeyPath = realpath($this->privateKeyPath);
         if ($privateKeyPath === false || !is_file($privateKeyPath) || !is_readable($privateKeyPath)) {
@@ -127,6 +129,19 @@ final class AuthorizationServerFactory
         $refreshTokenGrant->setRefreshTokenTTL($refreshTokenTTL);
         $refreshTokenGrant->revokeRefreshTokens(true);
         $server->enableGrantType($refreshTokenGrant, $accessTokenTTL);
+
+        $deviceCodeRepository = new DeviceCodeRepository($this->database, $clientRepository);
+        $deviceCodeGrant = new OfflineAccessDeviceCodeGrant(
+            $deviceCodeRepository,
+            $refreshTokenRepository,
+            $deviceCodeTTL,
+            rtrim($issuer, '/') . App::get('requestPath') . '/oauth2/device'
+        );
+        $deviceCodeGrant->setRefreshTokenTTL($refreshTokenTTL);
+        $deviceCodeGrant->revokeRefreshTokens(true);
+        $deviceCodeGrant->setIntervalVisibility(true);
+        $deviceCodeGrant->setIncludeVerificationUriComplete(true);
+        $server->enableGrantType($deviceCodeGrant, $accessTokenTTL);
 
         $server->enableGrantType(new ClientCredentialsGrant(), $accessTokenTTL);
 
