@@ -70,6 +70,51 @@ printf 'state: %s\n' "$state"
 printf 'PKCE code_verifier (keep for a later token exchange): %s\n' "$code_verifier"
 printf '\n'
 
+# When the redirect URI points to the loopback interface, serve the callback
+# locally and wait for the authorization code issued after consent.
+callback_listen="$(
+    php -r '
+        $parts = parse_url($argv[1]);
+        $host = $parts["host"] ?? "";
+        if (($parts["scheme"] ?? "") !== "http" || !in_array($host, ["127.0.0.1", "localhost", "[::1]"], true)) {
+            exit(0);
+        }
+        echo $host, ":", $parts["port"] ?? 80, " ", $parts["path"] ?? "/";
+    ' "$OAUTH2_REDIRECT_URI"
+)"
+
+callback_pid=""
+result_file=""
+cleanup() {
+    if [[ -n "$callback_pid" ]] && kill -0 "$callback_pid" 2>/dev/null; then
+        kill "$callback_pid" 2>/dev/null || true
+        wait "$callback_pid" 2>/dev/null || true
+    fi
+    if [[ -n "$result_file" ]]; then
+        rm -f "$result_file"
+    fi
+}
+trap cleanup EXIT
+
+if [[ -n "$callback_listen" ]]; then
+    listen_address="${callback_listen%% *}"
+    callback_path="${callback_listen#* }"
+    result_file="$(mktemp)"
+    : > "$result_file"
+
+    OAUTH2_CALLBACK_PATH="$callback_path" \
+    OAUTH2_CALLBACK_RESULT_FILE="$result_file" \
+        php -S "$listen_address" "$(cd "$(dirname "$0")" && pwd)/callback-server.php" \
+        >/dev/null 2>&1 &
+    callback_pid="$!"
+    sleep 0.3
+    if ! kill -0 "$callback_pid" 2>/dev/null; then
+        printf 'Could not start the callback listener on %s (port in use?).\n' "$listen_address" >&2
+        exit 1
+    fi
+    printf 'Waiting for the authorization code on http://%s%s ...\n\n' "$listen_address" "$callback_path"
+fi
+
 if [[ "${OPEN_BROWSER:-1}" == "1" ]]; then
     if command -v open >/dev/null 2>&1; then
         open "$authorize_url"
@@ -80,3 +125,44 @@ if [[ "${OPEN_BROWSER:-1}" == "1" ]]; then
         exit 1
     fi
 fi
+
+if [[ -z "$callback_listen" ]]; then
+    exit 0
+fi
+
+timeout_seconds="${OAUTH2_CALLBACK_TIMEOUT:-300}"
+waited=0
+while [[ ! -s "$result_file" ]]; do
+    if (( waited >= timeout_seconds )); then
+        printf 'Timed out after %s seconds waiting for the authorization code.\n' "$timeout_seconds" >&2
+        exit 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+done
+
+php -r '
+    [$script, $resultFile, $expectedState, $issuer, $clientId, $redirectUri, $codeVerifier] = $argv;
+    $params = json_decode((string) file_get_contents($resultFile), true);
+    if (!is_array($params)) {
+        fwrite(STDERR, "The callback result could not be read.\n");
+        exit(1);
+    }
+    if (isset($params["error"])) {
+        fwrite(STDERR, "Authorization failed: " . $params["error"]
+            . (isset($params["error_description"]) ? " - " . $params["error_description"] : "") . "\n");
+        exit(1);
+    }
+    if (!isset($params["code"], $params["state"]) || !hash_equals($expectedState, (string) $params["state"])) {
+        fwrite(STDERR, "The callback is missing a code or returned an unexpected state.\n");
+        exit(1);
+    }
+    echo "Authorization code received:\n", $params["code"], "\n\n";
+    echo "Exchange it for tokens:\n";
+    echo "curl -k -X POST \"", rtrim($issuer, "/"), "/oauth2/token\" \\\n";
+    echo "  -d grant_type=authorization_code \\\n";
+    echo "  -d client_id=", escapeshellarg($clientId), " \\\n";
+    echo "  -d redirect_uri=", escapeshellarg($redirectUri), " \\\n";
+    echo "  -d code_verifier=", escapeshellarg($codeVerifier), " \\\n";
+    echo "  -d code=", escapeshellarg($params["code"]), "\n";
+' "$result_file" "$state" "$OAUTH2_ISSUER_URL" "$OAUTH2_CLIENT_ID" "$OAUTH2_REDIRECT_URI" "$code_verifier"

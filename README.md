@@ -119,11 +119,17 @@ login session and notification-based continuation are tested in that browser:
 ```sh
 OAUTH2_ISSUER_URL="https://auth.example.test" \
 OAUTH2_CLIENT_ID="your-client-id" \
-OAUTH2_REDIRECT_URI="https://client.example/callback" \
+OAUTH2_REDIRECT_URI="http://127.0.0.1:8912/callback" \
 ./tools/authorize-example.sh
 ```
 
 The script requires `openssl` and `php`. Set `OPEN_BROWSER=0` to print the
-URL without opening a browser. The code verifier is printed for a later token
-exchange. At this stage, consent and token routes are not yet implemented, so
-the test covers the authorization request, login, and return to the issuer only.
+URL without opening a browser. When the redirect URI points to the loopback
+interface (`http://127.0.0.1`, `http://localhost`), the script serves the
+callback itself with `php -S`, waits for the authorization code issued after
+consent (timeout via `OAUTH2_CALLBACK_TIMEOUT`, default 300 seconds),
+verifies the `state`, and prints the code together with a ready-to-use
+`curl` command for the token exchange. The loopback redirect URI must be
+registered for the client. For non-loopback redirect URIs the script only
+opens the authorization request and prints the `code_verifier` for a manual
+token exchange.
