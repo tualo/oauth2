@@ -98,11 +98,22 @@ weiter.
 Die ExtJS-Oberflaeche kann unter `GET /consentinformation?request_id=...`
 die angeforderten Berechtigungen abrufen. `requested_access` enthaelt pro
 angefordertem Scope ein Objekt mit `type="string"`, `id` (Scope-Kennung),
-`name` und `description`. Die Daten stammen aus der gespeicherten Anfrage;
-Session, Benutzerzuordnung und Ablauf werden vor der Ausgabe geprueft.
-Die Standard-Scopes erhalten deutsche Beschreibungen, anwendungsspezifische
-Scopes werden mit ihrer Kennung angezeigt. Der Abruf erteilt keine Einwilligung
-und verbraucht die Anfrage nicht.
+`name`, `description` und `duration` (Gueltigkeitshinweis auf Basis der
+konfigurierten TTLs). Die Antwort enthaelt zusaetzlich das `csrf_token` der
+gespeicherten Anfrage fuer den Einwilligungs-POST. Die Daten stammen aus der
+gespeicherten Anfrage; Session, Benutzerzuordnung und Ablauf werden vor der
+Ausgabe geprueft. Die Standard-Scopes erhalten deutsche Beschreibungen,
+anwendungsspezifische Scopes werden mit ihrer Kennung angezeigt. Der Abruf
+erteilt keine Einwilligung und verbraucht die Anfrage nicht.
+
+Die Entscheidung erfolgt per `POST /oauth2/consent` mit JSON-Body
+(`request_id`, `csrf_token`, `decision` mit `approve` oder `deny`). Der
+Endpunkt prueft Session, Benutzerzuordnung, Ablauf und CSRF-Token, verbraucht
+die gespeicherte Anfrage und schliesst die Authorization Response ueber den
+Authorization Server ab. Die Antwort ist JSON mit `success` und
+`redirect_uri`; die Oberflaeche leitet den Browser dorthin weiter. Erteilung
+liefert den Authorization Code an die registrierte Redirect-URI, Ablehnung
+eine standardisierte `access_denied`-Antwort inklusive `state`.
 
 ### Token
 

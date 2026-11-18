@@ -44,15 +44,12 @@ Ext.define('Tualo.oauth2.lazy.ConsentPanel', {
         '->',
         {
             text: 'Ablehnen',
-            handler: function () {
-                Ext.History.back();
-            }
+            handler: 'onDeny'
         },
         {
             text: 'Akzeptieren',
-            handler: function () {
-                Ext.History.back();
-            }
+            iconCls: 'fa fa-check',
+            handler: 'onAccept'
         }
     ],
     items: [

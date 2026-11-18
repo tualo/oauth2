@@ -39,10 +39,11 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
                 $pending = is_array($pendingRequests) ? ($pendingRequests[$request_id] ?? null) : null;
                 if (
                     !is_array($pending)
-                    || !isset($pending['expires_at'], $pending['authorization_request'])
+                    || !isset($pending['expires_at'], $pending['authorization_request'], $pending['csrf_token'])
                     || !is_int($pending['expires_at'])
                     || $pending['expires_at'] <= time()
                     || !($pending['authorization_request'] instanceof AuthorizationRequestInterface)
+                    || !is_string($pending['csrf_token'])
                 ) {
                     throw new \Exception('The authorization request is invalid or has expired.', 15403);
                 }
@@ -102,6 +103,7 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
                     ];
                 }
                 App::result('request_id', $request_id);
+                App::result('csrf_token', $pending['csrf_token']);
                 App::result('requested_access', $requested_access);
                 App::result('success', true);
             } catch (\Exception $e) {
