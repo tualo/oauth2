@@ -14,7 +14,7 @@ class JsLoader extends \Tualo\Office\Basic\RouteWrapper
 
     public static function scope(): string
     {
-        return \Tualo\Office\OAuth2\Scopes\OAuth2UIScope::identifier();
+        return OAuth2UIScope::identifier();
     }
     public static function register()
     {

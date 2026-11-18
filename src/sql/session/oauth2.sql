@@ -1,3 +1,5 @@
+DELIMITER ;
+
 CREATE TABLE IF NOT EXISTS `oauth2_environments` (
     `id` varchar(128) NOT NULL,
     `val` text NOT NULL,

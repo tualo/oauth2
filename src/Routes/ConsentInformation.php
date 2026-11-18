@@ -8,6 +8,7 @@ use Tualo\Office\Basic\Session;
 use Tualo\Office\Basic\TualoApplication as App;
 use Tualo\Office\OAuth2\Entities\OAuthUser;
 use Tualo\Office\OAuth2\Scopes\OAuth2ConsentInformationScope;
+use Tualo\Office\OAuth2\Setup;
 
 class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
 {
@@ -25,7 +26,7 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
     }
     public static function register()
     {
-        BasicRoute::add('/consentinformation', function ($matches) {
+        BasicRoute::add('/oauth2/consentinformation', function ($matches) {
             App::contenttype('application/json');
             header('Cache-Control: no-store');
             App::result('success', false);
@@ -58,18 +59,29 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
                     throw new \Exception('The authorization request does not belong to the current user.', 15403);
                 }
 
+                $setup = Setup::getInstance();
+                $accessTtl = self::formatIntervalGerman($setup->envWithDefault('access_token_ttl', 'PT15M'));
+                $refreshTtl = self::formatIntervalGerman($setup->envWithDefault('refresh_token_ttl', 'P30D'));
+
                 $scopeDescriptions = [
                     'openid' => [
                         'name' => 'Anmeldung',
                         'description' => 'Dich anhand einer eindeutigen Benutzerkennung erkennen.',
+                        'duration' => 'Gültigkeit: nur solange der erteilte Zugriff besteht – '
+                            . 'ein Zugriff läuft spätestens nach ' . $accessTtl . ' automatisch ab.',
                     ],
                     'profile' => [
                         'name' => 'Profil',
                         'description' => 'Deinen Benutzernamen und Anzeigenamen lesen.',
+                        'duration' => 'Gültigkeit: nur solange der erteilte Zugriff besteht '
+                            . '(maximal ' . $accessTtl . ' je Zugriff).',
                     ],
                     'offline_access' => [
                         'name' => 'Dauerhafter Zugriff',
                         'description' => 'Die Zugriffsberechtigung erneuern, auch wenn du nicht mehr aktiv angemeldet bist.',
+                        'duration' => 'Gültigkeit: dauerhaft, bis du den Zugriff widerrufst – '
+                            . 'die Anwendung kann den Zugriff ohne erneute Anmeldung selbstständig '
+                            . 'immer wieder erneuern (jeweils um bis zu ' . $refreshTtl . ').',
                     ],
                 ];
                 $requested_access = [];
@@ -78,12 +90,15 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
                     $description = $scopeDescriptions[$identifier] ?? [
                         'name' => $identifier,
                         'description' => 'Anwendungsspezifische Berechtigung: ' . $identifier,
+                        'duration' => 'Gültigkeit: für die Dauer des erteilten Zugriffs '
+                            . '(maximal ' . $accessTtl . ' je Zugriff).',
                     ];
                     $requested_access[] = [
                         'type' => 'string',
                         'id' => $identifier,
                         'name' => $description['name'],
                         'description' => $description['description'],
+                        'duration' => $description['duration'],
                     ];
                 }
                 App::result('request_id', $request_id);
@@ -98,5 +113,32 @@ class ConsentInformation extends \Tualo\Office\Basic\RouteWrapper
                 App::result('msg', $e->getMessage());
             }
         }, ['get'], true, self::DefaultExpectedFields, self::scope());
+    }
+
+    private static function formatIntervalGerman(string $isoDuration): string
+    {
+        try {
+            $interval = new \DateInterval($isoDuration);
+        } catch (\Exception) {
+            return $isoDuration;
+        }
+
+        $units = [
+            [$interval->y, 'Jahr', 'Jahre'],
+            [$interval->m, 'Monat', 'Monate'],
+            [$interval->d, 'Tag', 'Tage'],
+            [$interval->h, 'Stunde', 'Stunden'],
+            [$interval->i, 'Minute', 'Minuten'],
+            [$interval->s, 'Sekunde', 'Sekunden'],
+        ];
+
+        $parts = [];
+        foreach ($units as [$value, $singular, $plural]) {
+            if ($value > 0) {
+                $parts[] = $value . ' ' . ($value === 1 ? $singular : $plural);
+            }
+        }
+
+        return $parts === [] ? $isoDuration : implode(' ', $parts);
     }
 }

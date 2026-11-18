@@ -11,6 +11,34 @@ use Tualo\Office\Basic\MYSQL\Database;
 use Tualo\Office\Basic\Session;
 use Tualo\Office\Basic\TualoApplication as App;
 
+
+/*
+class Install extends CommandLineInstallSQL  implements ICommandline
+{
+    public static function getDir(): string
+    {
+        return dirname(__DIR__, 1);
+    }
+    public static $shortName  = 'bsc-main-ds';
+    public static $files = [
+        'install/doublequote' => 'setup doublequote ',
+    ];
+    public static function exitOnError(): bool
+    {
+        return true;
+    }
+    public static function getFiles(): array
+    {
+        $res = json_decode(file_get_contents(static::getDir() . '/sql/install/files.json'), true);
+        $list = [];
+        foreach ($res as $row) {
+            $list["install/" . str_replace('.sql', '', $row['file'])] = $row['text'];
+        }
+        return $list;
+    }
+}
+*/
+
 final class Install implements ICommandline
 {
     public static function getCommandName(): string

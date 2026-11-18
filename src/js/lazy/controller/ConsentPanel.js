@@ -10,11 +10,23 @@ Ext.define('Tualo.oauth2.lazy.controller.ConsentPanel', {
 
     queryConsentInformation: async function (request_id) {
         try {
-            const response = await fetch(`./consentinformation?request_id=${encodeURIComponent(request_id)}`);
+            const response = await fetch(`./oauth2/consentinformation?request_id=${encodeURIComponent(request_id)}`);
             if (!response.ok) {
+
+                const json = await response.json();
+                Ext.toast({
+                    html: 'Fehler: ' + (json.msg || response.statusText || 'Unbekannter Fehler'),
+                    title: 'Fehler',
+                    align: 't',
+                    iconCls: 'fa fa-warning',
+                    duration: 3000
+                });
+
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
+            console.log('Consent information:', data.requested_access);
+            this.getView().getViewModel().getStore('items').setData(data.requested_access);
             return data;
         } catch (error) {
             console.error('Error querying consent information:', error);

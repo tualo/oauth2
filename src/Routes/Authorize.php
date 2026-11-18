@@ -110,7 +110,8 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
 
                 $stage = 'consent_redirect';
                 $issuer = Setup::getInstance()->env('issuer_url');
-                $consentUrl = rtrim($issuer, '/') . '/oauth2/consent?request_id=' . rawurlencode($requestId);
+                $requestPath = App::get('requestPath');
+                $consentUrl = rtrim($issuer, '/') . $requestPath . '/oauth2/consent?request_id=' . rawurlencode($requestId);
                 session_commit();
 
                 self::emit(new Response(
@@ -123,12 +124,17 @@ final class Authorize extends \Tualo\Office\Basic\RouteWrapper
             } catch (\Throwable $exception) {
                 App::logger('oauth2')->error('Authorization request processing failed.', [
                     'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
                     'code' => $exception->getCode(),
                     'stage' => $stage,
                     'file' => basename($exception->getFile()),
                     'line' => $exception->getLine(),
                     'sqlstate' => $exception instanceof \mysqli_sql_exception
                         ? $exception->getSqlState()
+                        : null,
+                    'hint' => in_array($stage, ['server_configuration', 'server_creation'], true)
+                        ? 'The OAuth2 setup is incomplete. Configure the [oauth2] section in .htconfig '
+                        . '(private_key_path, encryption_key) as described in the tualo/oauth2 README.'
                         : null,
                 ]);
                 self::emit(new Response(
