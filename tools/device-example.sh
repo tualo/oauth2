@@ -68,6 +68,7 @@ fi
 
 printf 'Polling the token endpoint every %s seconds (expires in %s seconds) ...\n' "$interval" "$expires_in"
 deadline=$(( $(date +%s) + expires_in ))
+transient_failures=0
 while true; do
     if (( $(date +%s) >= deadline )); then
         printf 'The device code expired before the request was approved.\n' >&2
@@ -75,12 +76,29 @@ while true; do
     fi
     sleep "$interval"
 
-    token_response="$(
-        curl "${curl_opts[@]}" -X POST "$issuer/server/oauth2/token" \
+    token_raw="$(
+        curl "${curl_opts[@]}" -w $'\n%{http_code}' -X POST "$issuer/oauth2/token" \
             -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
             -d "client_id=$OAUTH2_CLIENT_ID" \
-            -d "device_code=$device_code"
+            -d "device_code=$device_code" || true
     )"
+    http_status="${token_raw##*$'\n'}"
+    token_response="${token_raw%$'\n'*}"
+    if [[ "$token_response" == "$token_raw" ]]; then
+        token_response=""
+    fi
+
+    if [[ -z "$token_response" ]]; then
+        transient_failures=$((transient_failures + 1))
+        if (( transient_failures >= 3 )); then
+            printf '\nThe token endpoint %s returned no response (HTTP %s) three times in a row.\n' \
+                "$issuer/oauth2/token" "${http_status:-?}" >&2
+            exit 1
+        fi
+        printf 'x (empty response, HTTP %s - retrying)\n' "${http_status:-?}"
+        continue
+    fi
+    transient_failures=0
 
     status="$(
         php -r '
@@ -112,7 +130,7 @@ while true; do
             exit 1
             ;;
         *)
-            printf '\nToken request failed: %s\n' "$token_response" >&2
+            printf '\nToken request failed (HTTP %s): %s\n' "${http_status:-?}" "$token_response" >&2
             exit 1
             ;;
     esac
