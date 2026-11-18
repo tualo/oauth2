@@ -18,10 +18,10 @@ class OpenIDConfiguration extends \Tualo\Office\Basic\RouteWrapper
             $setup = \Tualo\Office\OAuth2\Setup::getInstance();
             $config = [
                 'issuer' => $setup->env('issuer_url'),
-                'authorization_endpoint' => rtrim($setup->env('issuer_url'), '/') . '/oauth2/authorize',
-                'token_endpoint' => rtrim($setup->env('issuer_url'), '/') . '/oauth2/token',
-                'device_authorization_endpoint' => rtrim($setup->env('issuer_url'), '/') . '/oauth2/device_authorization',
-                'jwks_uri' => rtrim($setup->env('issuer_url'), '/') . '/oauth2/jwks',
+                'authorization_endpoint' => rtrim($setup->env('issuer_url'), '/') . App::get('requestPath') . '/oauth2/authorize',
+                'token_endpoint' => rtrim($setup->env('issuer_url'), '/') . App::get('requestPath') . '/oauth2/token',
+                'device_authorization_endpoint' => rtrim($setup->env('issuer_url'), '/') . App::get('requestPath') . '/oauth2/device_authorization',
+                'jwks_uri' => rtrim($setup->env('issuer_url'), '/') . App::get('requestPath') . '/oauth2/jwks',
                 'response_types_supported' => ['code'],
                 'grant_types_supported' => [
                     'authorization_code',
