@@ -42,9 +42,35 @@ final class ScopeCatalog
             ],
         ];
 
+        // parameterized scopes: "<base>:<param>", e.g. "ds.read:kunden"
+        $parameterizedDescriptions = [
+            'ds.read' => [
+                'name' => 'Datenzugriff (lesend)',
+                'description' => static fn (string $param): string => 'Die Tabelle „' . $param . '“ lesen.',
+            ],
+            'ds.write' => [
+                'name' => 'Datenzugriff (schreibend)',
+                'description' => static fn (string $param): string => 'Die Tabelle „' . $param . '“ ändern.',
+            ],
+        ];
+
         $requestedAccess = [];
         foreach ($scopeIdentifiers as $identifier) {
-            $description = $scopeDescriptions[$identifier] ?? [
+            $description = $scopeDescriptions[$identifier] ?? null;
+
+            if ($description === null && str_contains($identifier, ':')) {
+                [$base, $param] = explode(':', $identifier, 2);
+                if (isset($parameterizedDescriptions[$base]) && $param !== '') {
+                    $description = [
+                        'name' => $parameterizedDescriptions[$base]['name'],
+                        'description' => $parameterizedDescriptions[$base]['description']($param),
+                        'duration' => 'Gültigkeit: für die Dauer des erteilten Zugriffs '
+                            . '(maximal ' . $accessTtl . ' je Zugriff).',
+                    ];
+                }
+            }
+
+            $description ??= [
                 'name' => $identifier,
                 'description' => 'Anwendungsspezifische Berechtigung: ' . $identifier,
                 'duration' => 'Gültigkeit: für die Dauer des erteilten Zugriffs '

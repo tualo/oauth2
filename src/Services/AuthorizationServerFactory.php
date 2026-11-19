@@ -135,7 +135,7 @@ final class AuthorizationServerFactory
             $deviceCodeRepository,
             $refreshTokenRepository,
             $deviceCodeTTL,
-            rtrim($issuer, '/') . App::get('requestPath') . '/oauth2/device'
+            rtrim($issuer, '/') . '/oauth2/device'
         );
         $deviceCodeGrant->setRefreshTokenTTL($refreshTokenTTL);
         $deviceCodeGrant->revokeRefreshTokens(true);

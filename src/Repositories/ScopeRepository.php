@@ -40,7 +40,7 @@ final class ScopeRepository implements ScopeRepositoryInterface
             }
 
             $identifier = $scope->getIdentifier();
-            if (!in_array($identifier, $clientEntity->getAllowedScopes(), true)) {
+            if (!self::isAllowed($identifier, $clientEntity->getAllowedScopes())) {
                 throw OAuthServerException::invalidScope($identifier);
             }
             $scopeIdentifiers[] = $identifier;
@@ -65,5 +65,25 @@ final class ScopeRepository implements ScopeRepositoryInterface
         }
 
         return $scopes;
+    }
+
+    /**
+     * An allowed-scopes entry matches exactly, or — when it ends with "*" —
+     * as a prefix pattern (e.g. "ds.read:*" allows "ds.read:kunden").
+     *
+     * @param string[] $allowedScopes
+     */
+    private static function isAllowed(string $identifier, array $allowedScopes): bool
+    {
+        foreach ($allowedScopes as $allowed) {
+            if ($allowed === $identifier) {
+                return true;
+            }
+            if (str_ends_with($allowed, '*') && str_starts_with($identifier, substr($allowed, 0, -1))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
