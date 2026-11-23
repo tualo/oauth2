@@ -22,7 +22,7 @@
       "src/functions.php"
     ]
   },
-  "version": "0.1.7",
+  "version": "0.1.8",
   "config": {
     "allow-plugins": {
       "nodejs-php-fallback/nodejs-php-fallback": true
